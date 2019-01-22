@@ -39,6 +39,70 @@ func setupTcpmanagerTestCaseSuite(t *testing.T) (TcpmanagerTestCaseSuite, func(t
 	s.engine.NewMethod("quit", quitf, true)
 
 	return s, func(t *testing.T) {
+		s.engine.Listener.Close()
+	}
+}
+
+func TestAddMethod(t *testing.T) {
+	s, teardownTestCase := setupTcpmanagerTestCaseSuite(t)
+	defer teardownTestCase(t)
+
+	tt := []struct {
+		name          string
+		methodName    string
+		err           bool
+		root          bool
+		handler       HandlerFunc
+		handlerLen    int
+		setupTestCase test.SetupSubTest
+	}{
+		{
+			name:       "success",
+			methodName: "testHandler",
+			err:        false,
+			root:       false,
+			handlerLen: 2,
+			handler: func(c *Context) {
+				c.Conn.Write([]byte(c.message + "\n"))
+			},
+			setupTestCase: test.EmptySubTest(),
+		},
+		{
+			name:       "success with no paramater function",
+			methodName: "testHandler2",
+			err:        false,
+			root:       true,
+			handlerLen: 1,
+			handler: func(c *Context) {
+				c.Conn.Write([]byte(c.message + "\n"))
+			},
+			setupTestCase: test.EmptySubTest(),
+		},
+		{
+			name:       "duplicate",
+			methodName: "test",
+			err:        true,
+			root:       true,
+			handler: func(c *Context) {
+				c.Conn.Write([]byte(c.message + "\n"))
+			},
+			setupTestCase: test.EmptySubTest(),
+		},
+	}
+
+	for _, tc := range tt {
+		t.Run(tc.name, func(t *testing.T) {
+			teardownSubTest := tc.setupTestCase(t)
+			defer teardownSubTest(t)
+
+			if tc.err {
+				assert.Panics(t, func() { s.engine.NewMethod(tc.methodName, tc.handler, tc.root) })
+			} else {
+				s.engine.NewMethod(tc.methodName, tc.handler, tc.root)
+				assert.NotNil(t, s.engine.handlerMap[tc.methodName])
+				assert.Equal(t, s.engine.handlerMap[tc.methodName].Len(), tc.handlerLen)
+			}
+		})
 	}
 }
 
