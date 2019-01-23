@@ -7,6 +7,7 @@ import (
 	"net"
 	"os"
 	"strings"
+	"time"
 )
 
 type HandlerFunc func(*Context)
@@ -14,14 +15,18 @@ type HandlerFunc func(*Context)
 type Engine struct {
 	Router
 
-	frontFunc  HandlerFunc
-	handlerMap map[string]*list.List
-	Listener   net.Listener
+	Listener     net.Listener
+	frontFunc    HandlerFunc
+	handlerMap   map[string]*list.List
+	deadDuration time.Duration
 }
+
+var _ IRouter = &Engine{}
 
 func New() *Engine {
 	e := &Engine{
-		handlerMap: make(map[string]*list.List),
+		handlerMap:   make(map[string]*list.List),
+		deadDuration: 120 * time.Second,
 	}
 	e.Router.engine = e
 
@@ -64,8 +69,6 @@ func NewListener(host string) (*Engine, error) {
 	return e, nil
 }
 
-var _ IRouter = &Engine{}
-
 func (engine *Engine) Run(host string) {
 	listener, err := net.Listen("tcp", host)
 	if err != nil {
@@ -82,6 +85,10 @@ func (engine *Engine) Run(host string) {
 		conn, err := listener.Accept()
 		if err != nil {
 			fmt.Printf("Some connection error: %s\n", err)
+		}
+		err = conn.SetDeadline(time.Now().Add(engine.deadDuration))
+		if err != nil {
+			fmt.Printf("Set connection deadline error: %s\n", err)
 		}
 
 		go engine.handleConnection(conn)
@@ -124,6 +131,11 @@ func (engine *Engine) handleContext(c *Context) {
 	message := c.Scanner.Text()
 
 	if len(message) <= 0 {
+		return
+	}
+	err := c.Conn.SetDeadline(time.Now().Add(engine.deadDuration))
+	if err != nil {
+		fmt.Printf("Set connection deadline error: %s\n", err)
 		return
 	}
 
