@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/charlesfan/go-tcp-server/method"
+	"github.com/charlesfan/go-tcp-server/service"
 )
 
 const (
@@ -16,6 +17,9 @@ func main() {
 
 	src := CONN_HOST + ":" + CONN_PORT
 
+	// Services init
+	service.Init()
+	// Server init
 	e := method.Init()
 	e.Run(src)
 }
