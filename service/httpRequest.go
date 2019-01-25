@@ -66,6 +66,7 @@ func (r *httpRequestService) contentHandler(c *Content) {
 		return
 	}
 	c.Conn.Write([]byte(s))
+	c.Conn.Write([]byte("\n"))
 }
 
 func NewHttpRequestService() HttpRequestServicer {
