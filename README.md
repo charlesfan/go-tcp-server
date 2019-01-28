@@ -66,7 +66,7 @@ func Init() *tcpmanager.Engine {
 	e.NewMethod("photo", PhotoHandler, false)
         e.NewMethod("video", VideoHandler, false)
         e.NewMethod("pixabay", PixabayAliveHandler, true)
-+       e.NewMethod("nameOfNewMethod", NewMathodHandler, false)
++       e.NewMethod("nameOfNewMethod", NewMathodHandler, true)
 
 	return e
 }
@@ -78,12 +78,10 @@ func Init() *tcpmanager.Engine {
 package method
 
 import (
-  "fmt"
-
-  "github.com/charlesfan/tcp-server/handler"
+  "github.com/charlesfan/go-tcp-server/tcpmanager"
 )
 
-func NewMathodHandler(c *handler.Context) {
+func NewMathodHandler(c *tcpmanager.Context) {
   c.Conn.Write([]byte("Hello world!!!\n"))
 }
 
