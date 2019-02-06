@@ -1,10 +1,10 @@
 package service_test
 
 import (
-	"io"
 	"net"
 	"net/http"
 	"net/http/httptest"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -60,22 +60,34 @@ func (e FakeConn) SetWriteDeadline(t time.Time) error { return nil }
 
 var reqCache []time.Time
 
-func SimpleHandler(w http.ResponseWriter, r *http.Request) {
-	w.WriteHeader(http.StatusOK)
-	reqCache = append(reqCache, time.Now())
-	io.WriteString(w, time.Now().String())
-}
-
 type HttpRequestTestCaseSuite struct {
 	service    service.HttpRequestServicer
 	testServer *httptest.Server
+	count      uint32
+	first      time.Time
 }
 
 func setupHttpRequestTestCaseSuite(t *testing.T) (HttpRequestTestCaseSuite, func(t *testing.T)) {
 	s := HttpRequestTestCaseSuite{
-		service:    service.NewHttpRequestService(),
-		testServer: httptest.NewServer(http.HandlerFunc(SimpleHandler)),
+		service: service.NewHttpRequestService(),
 	}
+
+	SimpleHandler := func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		atomic.AddUint32(&s.count, 1)
+		switch atomic.LoadUint32(&s.count) {
+		case 1:
+			s.first = time.Now()
+		case 30:
+			diff := time.Now().Sub(s.first)
+			assert.False(t, diff.Seconds() > float64(0.999))
+		case 31:
+			diff := time.Now().Sub(s.first)
+			assert.True(t, diff.Seconds() > float64(0.99))
+		}
+	}
+
+	s.testServer = httptest.NewServer(http.HandlerFunc(SimpleHandler))
 
 	return s, func(t *testing.T) {
 		s.service.Stop()
@@ -96,13 +108,4 @@ func TestHttpRequestService(t *testing.T) {
 
 		s.service.Put(c)
 	}
-
-	startTime := reqCache[0]
-	end29 := reqCache[29]
-	diff := end29.Sub(startTime)
-	assert.False(t, diff.Seconds() > float64(0.999))
-
-	end30 := reqCache[30]
-	diff = end30.Sub(startTime)
-	assert.True(t, diff.Seconds() > float64(0.999))
 }
