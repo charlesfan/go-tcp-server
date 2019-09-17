@@ -27,12 +27,6 @@ $ go build server.go
 $ ./server -port <port number>
 ```
 ## Test
-Use a vendor tool like: [Govendor](https://github.com/kardianos/govendor)
-1. Get assert library for test:
-```sh
-$ govendor sync
-```
-2. Run test:
 ```sh
 $ make test
 ```
